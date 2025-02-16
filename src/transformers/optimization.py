@@ -23,6 +23,7 @@ import torch
 from torch import nn
 from torch.optim import Optimizer
 from torch.optim.lr_scheduler import LambdaLR, ReduceLROnPlateau
+from .GreedyLR import *
 
 from .trainer_pt_utils import LayerWiseDummyOptimizer, LayerWiseDummyScheduler
 from .trainer_utils import SchedulerType
@@ -31,6 +32,21 @@ from .utils.versions import require_version
 
 
 logger = logging.get_logger(__name__)
+
+
+def get_greedy_schedule(optimizer: Optimizer, patience=10, min_lr=1e-3, smooth=False, factor=0.99 ):
+    """
+    Create a schedule with a constant learning rate, using the learning rate set in optimizer.
+
+    Args:
+        optimizer ([`~torch.optim.Optimizer`]):
+            The optimizer for which to schedule the learning rate.
+
+    Return:
+        `GreedyLR` with the appropriate schedule.
+    """
+
+    return GreedyLR(optimizer, patience=patience, min_lr=min_lr, smooth=smooth, factor=factor)
 
 
 def _get_constant_lambda(_=None):
@@ -509,6 +525,7 @@ TYPE_TO_SCHEDULER_FUNCTION = {
     SchedulerType.REDUCE_ON_PLATEAU: get_reduce_on_plateau_schedule,
     SchedulerType.COSINE_WITH_MIN_LR: get_cosine_with_min_lr_schedule_with_warmup,
     SchedulerType.WARMUP_STABLE_DECAY: get_wsd_schedule,
+    SchedulerType.GREEDY: get_greedy_schedule
 }
 
 
@@ -518,6 +535,10 @@ def get_scheduler(
     num_warmup_steps: Optional[int] = None,
     num_training_steps: Optional[int] = None,
     scheduler_specific_kwargs: Optional[dict] = None,
+    patience: Optional[int] = None,
+    min_lr: Optional[float] = None,
+    smooth: Optional[bool] = None,
+    factor: Optional[float] = None
 ):
     """
     Unified API to get any scheduler from its name.
@@ -575,8 +596,13 @@ def get_scheduler(
         return schedule_func(optimizer, **scheduler_specific_kwargs)
 
     # All other schedulers require `num_warmup_steps`
-    if num_warmup_steps is None:
+    if num_warmup_steps is None and name!=SchedulerType.GREEDY:
         raise ValueError(f"{name} requires `num_warmup_steps`, please provide that argument.")
+        
+    elif name == SchedulerType.GREEDY:
+        print(f"GreedyLR settings: patience={patience} smooth={smooth} min_lr={min_lr} factor={factor}")
+        if patience is None or min_lr is None or smooth is None:
+            raise ValueError(f"{name} requires `patience, min_lr and smooth`, please provide these arguments.")
 
     if name == SchedulerType.CONSTANT_WITH_WARMUP:
         return schedule_func(optimizer, num_warmup_steps=num_warmup_steps)
@@ -591,6 +617,9 @@ def get_scheduler(
             num_training_steps=num_training_steps,
             **scheduler_specific_kwargs,
         )
+    
+    if name == SchedulerType.GREEDY:
+        return schedule_func(optimizer, patience=patience, min_lr=min_lr, smooth=smooth, factor=factor)
 
     # All other schedulers require `num_training_steps`
     if num_training_steps is None:
