@@ -340,5 +340,4 @@ dependencies:
       - regex==2024.11.6
       - safetensors==0.5.2
       - tokenizers==0.21.0
-      - transformers==4.49.0.dev0
 prefix: /home/ec2-user/SageMaker/conda/envs/pytorch_p310_greedy_v2

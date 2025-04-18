@@ -47,17 +47,7 @@ def setup_training(model_name):
     try:
         logger.info(f"Initializing model with config: {config}")
         model = AutoModelForCausalLM.from_config(config)
-        
-        # 1. Enable gradient checkpointing
-        model.gradient_checkpointing_enable()
-        logger.info("Gradient checkpointing enabled")
-        
-        # 2. Convert to bfloat16 
-        model = model.to(torch.bfloat16)
-        
-        # 3. Move to CUDA 
-        model = model.cuda()
-        
+
         # Log model size
         # param_count = sum(p.numel() for p in model.parameters())
         # logger.info(f"Model initialized with {param_count/1e6:.2f}M parameters")
@@ -89,9 +79,9 @@ def main():
     
     # Create output directories
     exp_name = "codeparrot-ds"
-    run_num = '1'
-    run_name = "greedy"
-    date = "2025-02-15"
+    run_num = 'test1'
+    run_name = "cosine"
+    date = "2025-02-18"
     
     base_dir = f"./logs/{exp_name}/{MODEL_NAME}/run{run_num}/{run_name}/{date}"
     logging_dir = f"{base_dir}/tensorboard"
@@ -106,28 +96,29 @@ def main():
     # Training arguments
     training_args = TrainingArguments(
         output_dir=output_dir,
-        per_device_train_batch_size=2,  
-        per_device_eval_batch_size=2,   
+        per_device_train_batch_size=1,
+        per_device_eval_batch_size=1,
         logging_dir=logging_dir,
         logging_steps=10,
         num_train_epochs=1,
         learning_rate=2e-4,
         weight_decay=0.1,
-        gradient_accumulation_steps=128,
+        gradient_accumulation_steps=256,
         bf16=True,
-        # gradient_checkpointing=True,
+        gradient_checkpointing=True,
         evaluation_strategy="steps",
         eval_steps=1_000,
         warmup_steps=1_000,
         save_steps=500,
         save_total_limit=3,
         report_to="tensorboard",
-        lr_scheduler_type="greedy",
+        lr_scheduler_type=run_name,
         min_lr=1.85e-5,
         smooth=True,
         factor=0.95,
-        remove_unused_columns=False
-    )
+        remove_unused_columns=False,
+        # optim='adafactor'
+)
     
     # Data collator
     data_collator = DataCollatorForLanguageModeling(

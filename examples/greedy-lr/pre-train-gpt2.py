@@ -17,7 +17,7 @@ import logging
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
-MODEL_NAME = "gpt2"
+MODEL_NAME = "gpt2" # Source: https://huggingface.co/openai-community/gpt2 --> gpt2-small
 # MODEL_NAME = "meta-llama/Llama-3.2-1B"
 
 def setup_training(model_name):
@@ -73,9 +73,9 @@ def main():
     # Create output directories
     exp_name = "codeparrot-ds"  # Changed from ds to ddp
     model_name = MODEL_NAME
-    run_num = '1'
+    run_num = 'test1'
     run_name = "greedy"
-    date = "2025-02-15"
+    date = "2025-04-17"
     
     base_dir = f"./logs/{exp_name}/{model_name}/run{run_num}/{run_name}/{date}"
     logging_dir = f"{base_dir}/tensorboard"
@@ -109,7 +109,8 @@ def main():
         # greedy
         min_lr=1.85e-05,
         smooth=True,
-        factor=0.95
+        factor=0.95,
+        # optim="adafactor",
     )
     
     # Data collator
