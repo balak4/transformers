@@ -37,7 +37,7 @@ def setup_training(model_name):
     config = AutoConfig.from_pretrained(
         model_name,
         vocab_size=len(tokenizer),
-        n_ctx=128,
+        n_ctx=128, # context length
         bos_token_id=tokenizer.bos_token_id,
         eos_token_id=tokenizer.eos_token_id,
         torch_dtype=torch.bfloat16,  # Use bfloat16 for Llama
@@ -81,7 +81,7 @@ def main():
     exp_name = "codeparrot-ds"
     run_num = 'test1'
     run_name = "cosine"
-    date = "2025-02-18"
+    date = "2025-04-20"
     
     base_dir = f"./logs/{exp_name}/{MODEL_NAME}/run{run_num}/{run_name}/{date}"
     logging_dir = f"{base_dir}/tensorboard"
@@ -96,14 +96,14 @@ def main():
     # Training arguments
     training_args = TrainingArguments(
         output_dir=output_dir,
-        per_device_train_batch_size=1,
-        per_device_eval_batch_size=1,
+        per_device_train_batch_size=16,
+        per_device_eval_batch_size=16,
         logging_dir=logging_dir,
         logging_steps=10,
         num_train_epochs=1,
         learning_rate=2e-4,
         weight_decay=0.1,
-        gradient_accumulation_steps=256,
+        gradient_accumulation_steps=8,
         bf16=True,
         gradient_checkpointing=True,
         evaluation_strategy="steps",
