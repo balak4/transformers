@@ -37,7 +37,7 @@ def setup_training(model_name):
     config = AutoConfig.from_pretrained(
         model_name,
         vocab_size=len(tokenizer),
-        n_ctx=128, # context length
+        n_ctx=128,
         bos_token_id=tokenizer.bos_token_id,
         eos_token_id=tokenizer.eos_token_id,
         torch_dtype=torch.bfloat16,  # Use bfloat16 for Llama
@@ -72,7 +72,7 @@ def main():
         logger.info(f"GPU 0 memory allocated: {torch.cuda.memory_allocated(0) / 1024**3:.2f} GB")
         logger.info(f"GPU 0 memory cached: {torch.cuda.memory_reserved(0) / 1024**3:.2f} GB")
     
-    MODEL_NAME = "meta-llama/Llama-3.2-1B"
+    MODEL_NAME = "Qwen/Qwen2.5-0.5B"
     
     # Setup
     model, tokenizer, tokenized_datasets = setup_training(model_name=MODEL_NAME)
