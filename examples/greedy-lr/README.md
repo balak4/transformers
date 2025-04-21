@@ -70,6 +70,10 @@ torchrun --nproc_per_node=2 pre-train-llama3.2-1b.py --mode multi --lr_scheduler
 
 # Multi-GPU with DeepSpeed (2 GPUs) and greedy scheduler
 torchrun --nproc_per_node=2 pre-train-llama3.2-1b.py --mode multi --lr_scheduler greedy
+
+# Multi-GPU with 4 or 8 GPUs
+torchrun --nproc_per_node=4 pre-train-llama3.2-1b.py --mode multi --lr_scheduler cosine
+torchrun --nproc_per_node=8 pre-train-llama3.2-1b.py --mode multi --lr_scheduler cosine
 ```
 
 ### Command-line Arguments
@@ -151,6 +155,10 @@ def get_deepspeed_config(num_gpus, batch_size, grad_accum_steps):
             "stage": 2,  # Can try 1 if having issues
             # other settings...
         },
+        # These are set to "auto" to avoid batch size conflicts
+        "train_batch_size": "auto",
+        "train_micro_batch_size_per_gpu": "auto",
+        "gradient_accumulation_steps": "auto",
     }
 ```
 

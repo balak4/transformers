@@ -52,7 +52,7 @@ def get_deepspeed_config(num_gpus, batch_size, grad_accum_steps):
     """Generate DeepSpeed config dict based on training parameters."""
     return {
         "fp16": {"enabled": False},
-        "bf16": {"enabled": False},
+        "bf16": {"enabled": True},
         "zero_optimization": {
             "stage": 2,
             "offload_optimizer": {"device": "none"},
@@ -63,11 +63,11 @@ def get_deepspeed_config(num_gpus, batch_size, grad_accum_steps):
             "reduce_bucket_size": 5e8,
             "contiguous_gradients": True
         },
-        "gradient_accumulation_steps": grad_accum_steps,
+        "gradient_accumulation_steps": "auto",
         "gradient_clipping": 1.0,
         "steps_per_print": 10,
-        "train_batch_size": batch_size * grad_accum_steps * num_gpus,
-        "train_micro_batch_size_per_gpu": batch_size,
+        "train_batch_size": "auto",
+        "train_micro_batch_size_per_gpu": "auto",
         "wall_clock_breakdown": False
     }
 
@@ -86,6 +86,12 @@ def setup_training(model_name):
     # Load prepared dataset
     dataset_name = 'tokensized_dataset_train_50K_seed_42'
     load_dir = f'./logs/codeparrot-ds/{dataset_name}/'
+    
+    # Check if dataset exists
+    if not os.path.exists(load_dir):
+        logger.error(f"Dataset not found at {load_dir}. Please ensure the dataset is prepared.")
+        raise FileNotFoundError(f"Dataset directory {load_dir} does not exist")
+        
     tokenized_datasets = load_from_disk(load_dir)
     
     logger.info(f"Dataset columns: {tokenized_datasets['train'].column_names}")
@@ -205,7 +211,7 @@ def main():
         "weight_decay": 0.1,
         "gradient_accumulation_steps": 32,
         "max_grad_norm": 1.0,
-        "bf16": False,
+        "bf16": True,
         "fp16": False,
         "gradient_checkpointing": True,
         "evaluation_strategy": "steps",
@@ -214,14 +220,23 @@ def main():
         "save_steps": 500,
         "save_total_limit": 3,
         "report_to": "tensorboard",
-        "lr_scheduler_type": run_name,
-        "min_lr": 1.85e-5,
-        "smooth": True,
-        "factor": 0.95,
+        "lr_scheduler_type": run_name
+    }
+    
+    # Add common parameters
+    training_args_dict.update({
         "remove_unused_columns": False,
         "debug": "underflow_overflow",
         "logging_first_step": True
-    }
+    })
+    
+    # Add greedy LR specific parameters only when using greedy scheduler
+    if run_name == "greedy":
+        training_args_dict.update({
+            "min_lr": 1.85e-5,
+            "smooth": True,
+            "factor": 0.95
+        })
     
     if use_deepspeed:
         # For multi-GPU training, add DeepSpeed config and DistributedDataParallel settings
@@ -307,9 +322,15 @@ if __name__ == "__main__":
     2. Single GPU with greedy scheduler:
        python3 pre-train-llama3.2-1b.py --lr_scheduler greedy
        
-    3. Multi-GPU with DeepSpeed (2 GPUs):
-       # From within the examples/greedy-lr directory
+    3. Multi-GPU with DeepSpeed (works with 2, 4, or 8 GPUs):
+       # From within the examples/greedy-lr directory with 2 GPUs:
        torchrun --nproc_per_node=2 pre-train-llama3.2-1b.py --mode multi --lr_scheduler cosine
+       
+       # With 4 GPUs:
+       torchrun --nproc_per_node=4 pre-train-llama3.2-1b.py --mode multi --lr_scheduler cosine
+       
+       # With 8 GPUs:
+       torchrun --nproc_per_node=8 pre-train-llama3.2-1b.py --mode multi --lr_scheduler cosine
        
        # With greedy scheduler:
        torchrun --nproc_per_node=2 pre-train-llama3.2-1b.py --mode multi --lr_scheduler greedy
