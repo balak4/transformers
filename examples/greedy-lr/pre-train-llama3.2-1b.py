@@ -193,10 +193,11 @@ def main():
     logging_dir = f"{base_dir}/tensorboard"
     output_dir = f"{base_dir}/output"
     model_dir = f"{base_dir}/model"
+    config_dir = f"{base_dir}/configs"  # Directory to store config files
     
     logger.info(f"logs directory: {logging_dir}")
     
-    for dir_path in [logging_dir, output_dir, model_dir]:
+    for dir_path in [logging_dir, output_dir, model_dir, config_dir]:
         os.makedirs(dir_path, exist_ok=True)
     
     # Training arguments with conditional DeepSpeed setup
@@ -248,6 +249,12 @@ def main():
             grad_accum_steps=training_args_dict["gradient_accumulation_steps"]
         )
         
+        # Save a reference copy of the DeepSpeed config for future reference
+        reference_ds_config_path = os.path.join(config_dir, "deepspeed_config.json")
+        with open(reference_ds_config_path, 'w') as f:
+            json.dump(ds_config, f, indent=2)
+            logger.info(f"DeepSpeed config saved to {reference_ds_config_path}")
+            
         # Create a temporary DeepSpeed config file with unique name per process
         ds_config_path = os.path.join(os.path.dirname(output_dir), f"ds_config_rank{args.local_rank}.json")
         with open(ds_config_path, 'w') as f:
@@ -262,6 +269,25 @@ def main():
         
         logger.info(f"DeepSpeed config written to {ds_config_path}")
         
+    # Save a copy of the training arguments for reference
+    training_args_serializable = {}
+    for k, v in training_args_dict.items():
+        if isinstance(v, (str, int, float, bool, list, dict, type(None))):
+            training_args_serializable[k] = v
+        else:
+            training_args_serializable[k] = str(v)
+    
+    training_args_path = os.path.join(config_dir, "training_args.json")
+    with open(training_args_path, 'w') as f:
+        json.dump(training_args_serializable, f, indent=2)
+        logger.info(f"Training arguments saved to {training_args_path}")
+    
+    # Save model config for reference
+    model_config_path = os.path.join(config_dir, "model_config.json")
+    with open(model_config_path, 'w') as f:
+        json.dump(config.to_dict(), f, indent=2)
+        logger.info(f"Model config saved to {model_config_path}")
+    
     training_args = TrainingArguments(**training_args_dict)
     
     # Data collator
