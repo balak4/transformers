@@ -43,10 +43,10 @@ log_error() {
 
 # Function to check if conda environment is activated
 check_environment() {
-    """
-    Verify that the correct conda environment is activated.
-    Exits with error code 1 if environment is not activated.
-    """
+    
+    # Verify that the correct conda environment is activated.
+    # Exits with error code 1 if environment is not activated.
+    
     log_info "Checking conda environment..."
     if [[ "$CONDA_DEFAULT_ENV" != "pytorch_p310_greedy_v2" ]]; then
         log_error "Please activate the required conda environment first:"
@@ -58,21 +58,21 @@ check_environment() {
 
 # Function to get GPU memory usage in GB
 get_gpu_memory_usage() {
-    """
-    Calculate total GPU memory usage across all GPUs.
+   
+    # Calculate total GPU memory usage across all GPUs.
     
-    Returns:
-        Total GPU memory usage in GB.
-    """
+    # Returns:
+    #     Total GPU memory usage in GB.
+    
     nvidia-smi --query-gpu=memory.used --format=csv,noheader,nounits | awk '{sum+=$1} END {print sum/1024}'
 }
 
 # Function to display current GPU status
 show_gpu_status() {
-    """
-    Display detailed GPU status information including memory usage and utilization.
-    Shows information for each GPU and total memory consumption.
-    """
+    
+    # Display detailed GPU status information including memory usage and utilization.
+    # Shows information for each GPU and total memory consumption.
+    
     log_info "Current GPU Status:"
     nvidia-smi --query-gpu=index,name,memory.used,memory.total,utilization.gpu --format=csv,noheader | \
     while IFS=, read -r gpu_id name mem_used mem_total util; do
@@ -85,10 +85,10 @@ show_gpu_status() {
 
 # Function to kill training processes
 kill_training_processes() {
-    """
-    Terminate all running training processes, including torchrun, python and DeepSpeed.
-    Uses a two-stage termination approach (graceful, then forced) to ensure cleanup.
-    """
+    
+    # Terminate all running training processes, including torchrun, python and DeepSpeed.
+    # Uses a two-stage termination approach (graceful, then forced) to ensure cleanup.
+    
     log_info "Terminating any existing training processes..."
     
     # First attempt: Graceful termination
@@ -109,10 +109,10 @@ kill_training_processes() {
 
 # Function to clear GPU memory
 clear_gpu_memory() {
-    """
-    Clear GPU memory caches on all devices using PyTorch.
-    Also attempts a GPU reset if permissions allow.
-    """
+    
+    # Clear GPU memory caches on all devices using PyTorch.
+    # Also attempts a GPU reset if permissions allow.
+    
     log_info "Clearing GPU memory caches..."
     
     # Clear CUDA cache using Python
@@ -319,18 +319,18 @@ parse_arguments() {
 
 # Main execution function
 main() {
-    """
-    Main execution function for sequential training.
     
-    Workflow:
-    1. Parse command line arguments
-    2. Perform pre-flight environment checks
-    3. Clean up any existing processes
-    4. Run Phase 1: Greedy LR Training
-    5. Perform inter-phase cleanup
-    6. Run Phase 2: Cosine LR Training
-    7. Perform final cleanup
-    """
+    # Main execution function for sequential training.
+    
+    # Workflow:
+    # 1. Parse command line arguments
+    # 2. Perform pre-flight environment checks
+    # 3. Clean up any existing processes
+    # 4. Run Phase 1: Greedy LR Training
+    # 5. Perform inter-phase cleanup
+    # 6. Run Phase 2: Cosine LR Training
+    # 7. Perform final cleanup
+    
     # Parse command line arguments
     parse_arguments "$@"
     
