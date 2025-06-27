@@ -1,175 +1,194 @@
-# Greedy Learning Rate Scheduler Pre-training Scripts
+# LLaMA 3.2 1B Training Tools
 
-This directory contains scripts for pre-training causal language models (LLMs) from scratch using the Greedy Learning Rate scheduler and other schedulers like Cosine with both single-GPU and distributed multi-GPU training support.
+This directory contains scripts and utilities for training LLaMA 3.2 1B models with different learning rate schedulers, specifically comparing Greedy LR and Cosine LR approaches.
 
 ## Overview
 
-The scripts implement pre-training for different model architectures:
-- `pre-train-gpt2.py`: Pre-training for GPT-2 models
-- `pre-train-llama3.2-1b.py`: Pre-training for LLaMA 3.2 1B models with support for both greedy and cosine schedulers
-- `pretrain-llm-gpt2.ipynb`: Jupyter notebook demonstrating data preprocessing and training workflow
+These tools allow you to:
+1. Train LLaMA 3.2 1B with Greedy LR or Cosine LR schedulers
+2. Run sequential training phases with robust GPU memory management
+3. Compare training results between different schedulers
 
-## Requirements
+## Setup Instructions for SageMaker Studio
 
-- Python 3.8+
-- PyTorch 2.0+
-- Transformers 4.30+
-- Accelerate 0.20+
-- Datasets 2.10+
-- DeepSpeed (for multi-GPU training)
+### 1. Instance Requirements
 
-### Recommended Hardware
+- **Instance Type**: g5.12xlarge or larger
+- **Storage**: At least 100GB to accommodate model checkpoints and datasets
 
-- **Single GPU training**: At least 16GB VRAM
-- **Multi-GPU training**: 2+ GPUs with 16GB+ VRAM each
-- For LLaMA 3.2 1B: At least 24GB VRAM total (can be distributed across GPUs)
-
-## Dataset Preparation
-
-The scripts use a pre-tokenized dataset of code snippets. The dataset should be prepared using the steps outlined in the `pretrain-llm-gpt2.ipynb` notebook. The default location for the datasets is:
-
-```
-./logs/codeparrot-ds/tokensized_dataset_train_50K_seed_42/
-```
-
-## Pre-training Options
-
-### Single GPU Training
-
-Train on a single GPU with simplified setup. This is the default mode and works well for smaller models like GPT-2.
-
-### Multi-GPU Training with DeepSpeed
-
-For larger models like LLaMA 3.2 1B, you can use multi-GPU training with DeepSpeed's Zero Redundancy Optimizer (ZeRO) Stage 2. This distributes the model optimization state across multiple GPUs, allowing for efficient training of larger models.
-
-## Usage Instructions
-
-### GPT-2 Pre-training
+### 2. Environment Setup
 
 ```bash
-# Single GPU
-python3 pre-train-gpt2.py
+# Clone the repository
+git clone https://github.com/balak4/transformers.git
+cd transformers
 
-# Multi-GPU with DeepSpeed (must specify --mode multi)
+# Create and activate conda environment
 cd examples/greedy-lr
-torchrun --nproc_per_node=2 pre-train-gpt2.py --mode multi
+conda env create -f conda/pytorch_p310_greedy_v2.yml
+conda activate pytorch_p310_greedy_v2
 ```
 
-### LLaMA 3.2 1B Pre-training
+## Training Data Preparation
+
+### Option 1: Use pre-prepared datasets (Recommended)
+
+Pre-tokenized datasets are available in the following S3 bucket:
+```bash
+aws s3 ls s3://greedylr-research-artifacts/datasets/
+```
+
+Download your dataset of choice:
+```bash
+aws s3 cp s3://greedylr-research-artifacts/datasets/redpajama_50K_seed_42/ ./datasets/redpajama/redpajama_50K_seed_42/ --recursive
+```
+
+### Option 2: Prepare your own dataset
+
+If your dataset is not available in the S3 bucket, you can prepare it using the data preparation script:
 
 ```bash
-# Single GPU with cosine scheduler (default)
-python3 pre-train-llama3.2-1b.py
+# Example for RedPajama dataset
+python llama3.2-1b_pretraining_data_prep.py \
+  --dataset_id "togethercomputer/RedPajama-Data-1T" \
+  --tokenizer_id "meta-llama/Llama-3.2-1B" \
+  --train_samples 50000 \
+  --text_column "text" \
+  --output_name "redpajama_50K_seed_42"
+```
 
-# Single GPU with greedy scheduler
-python3 pre-train-llama3.2-1b.py --lr_scheduler greedy
+## Scripts
 
-# Multi-GPU with DeepSpeed (2 GPUs) and cosine scheduler
-cd examples/greedy-lr
-torchrun --nproc_per_node=2 pre-train-llama3.2-1b.py --mode multi --lr_scheduler cosine
+### Training Scripts
 
-# Multi-GPU with DeepSpeed (2 GPUs) and greedy scheduler
-torchrun --nproc_per_node=2 pre-train-llama3.2-1b.py --mode multi --lr_scheduler greedy
+- **`pre-train-llama3.2-1b.py`**: Main training script for LLaMA 3.2 1B
+- **`llama3.2-1b_pretraining_data_prep.py`**: Data preparation script for pre-training
+- **`run_sequential_training.sh`**: Run sequential training with Greedy LR followed by Cosine LR
+- **`test_training_stability.py`**: Progressive stability testing framework
 
-# Multi-GPU with 4 or 8 GPUs
+### Comparison Tools
+
+- **`compare_schedulers.py`**: Generate comparison plots and reports between schedulers
+- **`monitor_training.py`**: Real-time monitoring of training progress
+
+## Quick Start
+
+### Running Greedy LR → Cosine LR Sequential Training
+
+```bash
+# Ensure conda environment is activated
+conda activate pytorch_p310_greedy_v2
+
+# Run sequential training
+./run_sequential_training.sh
+```
+
+### Running Individual Training (Cosine or Greedy)
+
+You can also run individual training with either scheduler using the main training script:
+
+```bash
+# For Greedy LR (multi-GPU)
+torchrun --nproc_per_node=4 pre-train-llama3.2-1b.py --mode multi --lr_scheduler greedy
+
+# For Cosine LR (multi-GPU)
 torchrun --nproc_per_node=4 pre-train-llama3.2-1b.py --mode multi --lr_scheduler cosine
-torchrun --nproc_per_node=8 pre-train-llama3.2-1b.py --mode multi --lr_scheduler cosine
 ```
 
-### Command-line Arguments
+### Comparing Scheduler Results
 
-The scripts support the following command-line arguments:
+After running both schedulers, you can compare their performance:
 
-- `--mode`: Training mode
-  - `single`: Single GPU training (default)
-  - `multi`: Multi-GPU training with DeepSpeed
-- `--lr_scheduler`: Learning rate scheduler type
-  - `cosine`: Cosine learning rate scheduler (default)
-  - `greedy`: Greedy learning rate scheduler
-- `--num_gpus`: Number of GPUs to use in multi-GPU mode (default: 2)
-- `--local_rank`: Local rank for distributed training (automatically set by torchrun)
+```bash
+# Run with default paths
+python compare_schedulers.py
 
-## Scaling Tips
-
-### Batch Size and Gradient Accumulation
-
-The default settings are:
-- `per_device_train_batch_size`: 4 (LLaMA) / 48 (GPT-2)
-- `gradient_accumulation_steps`: 32 (LLaMA) / 8 (GPT-2)
-
-For larger GPU setups, you can increase batch size or decrease gradient accumulation:
-
-```python
-# For 8x H100 setup
-training_args_dict = {
-    "per_device_train_batch_size": 8,  # Double the batch size
-    "gradient_accumulation_steps": 16,  # Half the accumulation steps
-    # other args...
-}
+# Or specify custom paths
+python compare_schedulers.py \
+  --greedy-dir ./logs/redpajama/meta-llama/Llama-3.2-1B/run_1/greedy/YYYY-MM-DD/tensorboard \
+  --cosine-dir ./logs/redpajama/meta-llama/Llama-3.2-1B/run_1/cosine/YYYY-MM-DD/tensorboard \
+  --output-dir ./my_comparison_results
 ```
 
-### Precision Options
+## Training Configuration
 
-The scripts default to FP32 training for stability. To enable mixed precision:
+The current configuration is optimized for training on 4 GPUs with DeepSpeed ZeRO-3:
 
-1. For BF16 (recommended for NVIDIA Ampere+ GPUs):
-```python
-# In DeepSpeed config
-"bf16": {"enabled": True},
+- **Model**: LLaMA 3.2 1B
+- **Batch Size**: 2 per device (effective batch size: 8)
+- **Gradient Accumulation**: 64 steps
+- **Training Steps**: 500 (default for each phase)
+- **BF16 Precision**: Enabled
+- **Gradient Checkpointing**: Enabled
+
+## Understanding the Results
+
+See `SEQUENTIAL_TRAINING_GUIDE.md` for details on the sequential training process and expected outcomes.
+
+The comparison script will generate a directory containing:
+- `comparison_report.md`: Detailed analysis of the two schedulers
+- Various plots comparing metrics like loss and learning rate curves
+
+## Monitoring Training Progress
+
+For real-time monitoring of training, use the included monitoring script:
+
+```bash
+# In a separate terminal (while training is running)
+conda activate pytorch_p310_greedy_v2
+python monitor_training.py
 ```
 
-2. For FP16 (older GPUs):
-```python
-# In DeepSpeed config
-"fp16": {"enabled": True},
-```
+See `MONITOR_USAGE.md` for more information on monitoring options.
 
 ## Troubleshooting
 
-### Common Issues
+If you encounter issues, refer to `DEBUGGING_GUIDE.md` for:
+- Common error solutions
+- Memory optimization techniques
+- NCCL timeout prevention strategies
 
-1. **CUDA Out of Memory**:
-   - Reduce `per_device_train_batch_size`
-   - Increase `gradient_accumulation_steps`
-   - Enable gradient checkpointing (already enabled in scripts)
+## Training Stability Testing
 
-2. **Distributed Training Errors**:
-   - Ensure all processes can access the dataset
-   - Verify unique DeepSpeed config paths per process
-   - Check for port conflicts with `--master_port` option for torchrun
+Before running long training jobs, it's recommended to validate training stability using the included testing framework:
 
-3. **Numerical Stability Issues**:
-   - Start with FP32 training
-   - Gradually transition to mixed precision once stable
-   - Use DeepSpeed ZeRO Stage 1 instead of 2 if needed
+```bash
+# Run stability tests for both schedulers
+python test_training_stability.py
 
-### DeepSpeed Configuration
+# Test only specific scheduler
+python test_training_stability.py --schedulers greedy
 
-The DeepSpeed configuration can be adjusted in the `get_deepspeed_config` function:
-
-```python
-def get_deepspeed_config(num_gpus, batch_size, grad_accum_steps):
-    return {
-        # Adjust settings here
-        "zero_optimization": {
-            "stage": 2,  # Can try 1 if having issues
-            # other settings...
-        },
-        # These are set to "auto" to avoid batch size conflicts
-        "train_batch_size": "auto",
-        "train_micro_batch_size_per_gpu": "auto",
-        "gradient_accumulation_steps": "auto",
-    }
+# Run a specific test configuration
+python test_training_stability.py --test basic
 ```
 
-## Outputs
+### Progressive Test Configurations
 
-The pre-training outputs are saved to:
-```
-./logs/codeparrot-ds/{MODEL_NAME}/run{run_num}/{run_name}/{date}/
-```
+The framework runs a series of 5 tests with increasing complexity:
 
-This directory contains:
-- `tensorboard/`: TensorBoard logs
-- `output/`: Checkpoints and training outputs
-- `model/`: Final saved model
+| Test | Steps | Eval | Save | Purpose |
+|------|-------|------|------|---------|
+| **basic** | 10 | ❌ | ❌ | Validate core training loop |
+| **with_eval** | 50 | ✅ | ❌ | Test evaluation stability |
+| **with_checkpoints** | 10 | ✅ | ✅ | Test checkpointing |
+| **full_features** | 100 | ✅ | ✅ | Test complete functionality |
+| **extended** | 500 | ✅ | ✅ | Extended stability test |
+
+### Features
+
+- **System Resource Checking**: Validates CPU, memory, and GPU resources
+- **Process Cleanup**: Ensures clean testing environment for each test
+- **Memory Tracking**: Monitors GPU memory usage during critical operations
+- **Detailed Reporting**: Generates comprehensive reports with test results
+
+### Interpreting Results
+
+After tests complete, a detailed stability report is generated:
+- **Location**: `./test_runs/stability_test_report.json`
+- **Success Criteria**: All tests should pass before running full training
+- **Failure Analysis**: If tests fail, check memory usage, NCCL communication, and dataset performance
+
+## Memory Optimization
+
+See `MEMORY_OPTIMIZATION_SUMMARY.md` for detailed memory usage information and optimization techniques used in this implementation.
