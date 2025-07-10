@@ -27,6 +27,9 @@ cd transformers
 cd examples/greedy-lr
 conda env create -f conda/pytorch_p310_greedy_v2.yml
 conda activate pytorch_p310_greedy_v2
+
+# Install modified transformers fork in local env
+python3 -m pip install -e /home/sagemaker-user/transformers/
 ```
 
 ## Training Data Preparation

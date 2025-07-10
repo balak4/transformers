@@ -376,7 +376,7 @@ dependencies:
       - termcolor==3.1.0
       - tokenizers==0.21.0
       - torch-tb-profiler==0.4.3
-      - transformers==4.49.0.dev0
+      # - transformers==4.49.0.dev0 # modified transformers fork installed separately - see README.md
       - typing-inspection==0.4.1
       - uvicorn==0.34.3
       - wrapt==1.17.2
