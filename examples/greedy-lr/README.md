@@ -43,7 +43,7 @@ aws s3 ls s3://greedylr-research-artifacts/datasets/
 
 Download your dataset of choice:
 ```bash
-aws s3 cp s3://greedylr-research-artifacts/datasets/redpajama_50K_seed_42/ ./datasets/redpajama/redpajama_50K_seed_42/ --recursive
+aws s3 cp s3://greedylr-research-artifacts/datasets/redpajama/redpajama_50K_seed_42/ ./datasets/redpajama/redpajama_50K_seed_42/ --recursive
 ```
 
 ### Option 2: Prepare your own dataset
@@ -83,6 +83,8 @@ python llama3.2-1b_pretraining_data_prep.py \
 conda activate pytorch_p310_greedy_v2
 
 # Run sequential training
+# If using huggingface datasets, login to huggingface hub
+huggingface-cli login
 ./run_sequential_training.sh
 ```
 
